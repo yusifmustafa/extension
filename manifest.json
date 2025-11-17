@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Tour Data Collector",
+  "version": "1.0.7",
+  "description": "Select offers, copy via context menu, and authenticate to get token.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "http://49.12.130.247:9282/*",
+    "*://*.summertour.az/*",
+    "*://*.kompastour.az/*",
+    "*://*.kazunion.com/*",
+    "*://*.prestigetravel-az.com/*",
+    "*://*.fstravel.asia/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.summertour.az/*",
+        "*://*.kompastour.az/*",
+        "*://*.kazunion.com/*",
+        "*://*.prestigetravel-az.com/*",
+        "*://*.fstravel.asia/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
