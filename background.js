@@ -24,7 +24,8 @@ chrome.runtime.onInstalled.addListener(() => {
         },
         apiUrl: data.apiUrl || "http://49.12.130.247:9281/api/v1/auth/login",
         insertUrl:
-          data.insertUrl || "http://localhost:9281/api/v1/tour-package/tour",
+          data.insertUrl ||
+          "http://49.12.130.247:9281/api/v1/tour-package/tour",
       };
       chrome.storage.local.set(init);
     }
@@ -115,7 +116,7 @@ async function insertToursToAPI(applicationLeadId, items, url) {
 
   const { auth, insertUrl } = await chrome.storage.local.get({
     auth: {},
-    insertUrl: "http://localhost:9281/api/v1/tour-package/tour",
+    insertUrl: "http://49.12.130.247:9281/api/v1/tour-package/tour",
   });
 
   if (!auth.token) {
