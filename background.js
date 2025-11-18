@@ -15,7 +15,7 @@ chrome.runtime.onInstalled.addListener(() => {
           type: null,
           username: null,
         },
-        apiUrl: data.apiUrl || "http://49.12.130.247:9282/api/auth/login",
+        apiUrl: data.apiUrl || "http://49.12.130.247:9281/api/v1/auth/login",
         insertUrl:
           data.insertUrl || "http://49.12.130.247:9282/api/tours/insert",
       };
@@ -38,7 +38,6 @@ chrome.runtime.onInstalled.addListener(() => {
 
   console.log("✅ Context menu created");
 });
-
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   console.log("🖱️ Context menu clicked:", info.menuItemId);
 
@@ -88,7 +87,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
-
 async function insertToursToAPI(applicationLeadId, items) {
   console.log("🚀 Inserting tours to API...");
 
@@ -97,19 +95,19 @@ async function insertToursToAPI(applicationLeadId, items) {
     insertUrl: "http://49.12.130.247:9282/api/tours/insert",
   });
 
-  // if (!auth.token) {
-  //   throw new Error("Token yoxdur! Popup-dan login edin.");
-  // }
+  if (!auth.token) {
+    console.warn("⚠️ Token yoxdur! Popup açılır...");
+    chrome.action.openPopup();
+    throw new Error("Token yoxdur! Zəhmət olmasa login olun.");
+  }
 
-  // ✅ Send structured payload with applicationLeadId
   const payload = {
     applicationLeadId: applicationLeadId,
-    tours: items, // items is now an array of structured DTOs
+    tours: items,
   };
 
   console.log("📤 FULL PAYLOAD OBJECT:", JSON.parse(JSON.stringify(payload)));
   console.log("📤 FULL PAYLOAD STRING:", JSON.stringify(payload, null, 2));
-  console.log("PAYLOAD", payload);
 
   const response = await fetch(insertUrl, {
     method: "POST",
@@ -117,7 +115,7 @@ async function insertToursToAPI(applicationLeadId, items) {
       "Content-Type": "application/json",
       Authorization: `${auth.type || "Bearer"} ${auth.token}`,
     },
-    body: payload,
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -128,7 +126,6 @@ async function insertToursToAPI(applicationLeadId, items) {
   const result = await response.json();
   console.log("✅ API Response:", result);
 
-  // Save the structured items to local storage
   const { entries } = await chrome.storage.local.get({ entries: [] });
   items.forEach((item) => entries.push(item));
   await chrome.storage.local.set({ entries });

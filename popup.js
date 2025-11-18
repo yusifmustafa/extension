@@ -1,83 +1,111 @@
+const loginForm = document.getElementById("loginForm");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const status = document.getElementById("status");
+const userInfo = document.getElementById("userInfo");
+const displayUsername = document.getElementById("displayUsername");
 
-const $=s=>document.querySelector(s);
-const loginDiv=$("#login"), viewerDiv=$("#viewer"), dataDiv=$("#data");
-const apiResult=$("#apiResult"), tokenBox=$("#tokenBox"), apiUrlInput=$("#apiUrl");
+const LOGIN_URL = "http://49.12.130.247:9281/api/v1/auth/login";
 
-function init(){
-  chrome.storage.local.get({ apiUrl:"http://49.12.130.247:9282/api/auth/login", auth:{} }, ({apiUrl, auth})=>{
-    apiUrlInput.value = apiUrl || "http://49.12.130.247:9282/api/auth/login";
-    if (auth && auth.token) {
-      tokenBox.style.display="block";
-      tokenBox.textContent = `Token: ${auth.token}\nRefresh: ${auth.refreshToken || ""}\nType: ${auth.type || ""}\nUser: ${auth.username || ""}`;
-      viewerDiv.style.display="block";
-    }
-  });
-}
-init();
-
-function render(){
-  chrome.storage.local.get({entries:[]},({entries})=>{
-    if(!entries||!entries.length){ dataDiv.textContent="No offers saved yet."; return; }
-    dataDiv.textContent = entries.map(e=>e.trim()).join(" --- ");
-  });
-}
-
-$("#loginBtn").addEventListener("click", async ()=>{
-  const username=$("#username").value.trim();
-  const password=$("#password").value;
-  const apiUrl=apiUrlInput.value.trim() || "http://49.12.130.247:9282/api/auth/login";
-  if(!username||!password){ alert("Please enter both username and password"); return; }
-  apiResult.textContent = "Requesting...";
-  tokenBox.style.display="none";
-  tokenBox.textContent = "";
-
-  chrome.storage.local.set({ apiUrl });
-
-  try{
-    const res = await fetch(apiUrl, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ username, password })
-    });
-
-    const raw = await res.text();
-    let data = null;
-    try { data = JSON.parse(raw); } catch(e) {
-      apiResult.textContent = "Error: Received non-JSON (likely an HTML SPA page). Use the REAL API endpoint (e.g., /api/auth/login).\n\n"
-        + "Response preview:\n" + raw.substring(0, 600);
-      return;
-    }
-
-    if (res.ok && data && data.token) {
-      tokenBox.style.display="block";
-      tokenBox.textContent = `Token: ${data.token}\nRefresh: ${data.refreshToken || ""}\nType: ${data.type || ""}\nUser: ${data.username || ""}`;
-      apiResult.textContent = JSON.stringify(data, null, 2);
-      chrome.storage.local.set({ 
-        auth: { token: data.token, refreshToken: data.refreshToken || null, type: data.type || null, username: data.username || null }
-      }, ()=>{
-        viewerDiv.style.display="block";
-      });
-    } else {
-      let msg = data.message || data.error || data.detail || "Unknown error";
-      apiResult.textContent = "Error: " + msg + "\n" + JSON.stringify(data, null, 2);
-    }
-
-  }catch(err){
-    apiResult.textContent = "Login request failed: " + (err && err.message ? err.message : String(err));
+chrome.storage.local.get(["auth"], (data) => {
+  if (data.auth && data.auth.token) {
+    showLoggedInState(data.auth.username);
   }
 });
 
-$("#refreshBtn").addEventListener("click",render);
-$("#clearBtn").addEventListener("click",()=>{
-  if(!confirm("Clear all saved offers?")) return;
-  chrome.storage.local.set({entries:[]},render);
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if (!username || !password) {
+    showStatus("Zəhmət olmasa bütün xanaları doldurun", "error");
+    return;
+  }
+
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Daxil olunur...";
+  showStatus("Gözləyin...", "info");
+
+  try {
+    const response = await fetch(LOGIN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Login xətası: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const authData = {
+      token: data.token,
+      refreshToken: data.refreshToken,
+      type: data.type || "Bearer",
+      username: data.username,
+    };
+
+    chrome.storage.local.set({ auth: authData }, () => {
+      console.log("✅ Auth data saved:", authData);
+      showStatus("✓ Uğurla daxil oldunuz!", "success");
+      setTimeout(() => {
+        showLoggedInState(authData.username);
+      }, 1000);
+    });
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    showStatus("✗ Xəta: " + error.message, "error");
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Daxil ol";
+  }
 });
-$("#exportBtn").addEventListener("click",()=>{
-  chrome.storage.local.get({entries:[]},({entries})=>{
-    const txt = (entries||[]).map(e=>e.trim()).join(" --- ");
-    const blob = new Blob([txt], {type:"text/plain"});
-    const url = URL.createObjectURL(blob); const a=document.createElement("a");
-    a.href=url; a.download="tour-offers.txt"; a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  });
+
+logoutBtn.addEventListener("click", () => {
+  chrome.storage.local.set(
+    {
+      auth: {
+        token: null,
+        refreshToken: null,
+        type: null,
+        username: null,
+      },
+    },
+    () => {
+      console.log("✅ Logged out");
+      showLoggedOutState();
+      showStatus("✓ Çıxış edildi", "success");
+      setTimeout(() => {
+        status.style.display = "none";
+      }, 2000);
+    }
+  );
 });
+
+function showStatus(message, type) {
+  status.textContent = message;
+  status.className = `status ${type}`;
+  status.style.display = "block";
+}
+
+function showLoggedInState(username) {
+  loginForm.classList.add("hidden");
+  userInfo.classList.add("active");
+  displayUsername.textContent = username;
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+  status.style.display = "none";
+}
+
+function showLoggedOutState() {
+  loginForm.classList.remove("hidden");
+  userInfo.classList.remove("active");
+}

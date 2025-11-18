@@ -218,7 +218,7 @@
       "margin: 0 0 16px 0 !important; font-size: 20px !important; color: #333 !important;";
 
     const info = document.createElement("p");
-    info.textContent = `${items.length} təklif seçildi. Davam etmək üçün ApplicationLeadId-ni daxil edin.`;
+    info.textContent = `${items.length} təklif seçildi. Davam etmək üçün İzləmə kodu daxil edin.`;
     info.style.cssText =
       "margin: 0 0 16px 0 !important; color: #666 !important; font-size: 14px !important;";
 
@@ -319,9 +319,17 @@
 
           setTimeout(() => overlay.remove(), 2000);
         } else {
-          statusDiv.style.background = "#f8d7da";
-          statusDiv.style.color = "#721c24";
-          statusDiv.textContent = "✗ Xəta: " + response.error;
+          // ✅ Check if error is about missing token
+          if (response.error && response.error.includes("Token yoxdur")) {
+            statusDiv.style.background = "#fff3cd";
+            statusDiv.style.color = "#856404";
+            statusDiv.innerHTML =
+              "⚠️ Token yoxdur! <br>Extension ikonuna klikləyib login olun.";
+          } else {
+            statusDiv.style.background = "#f8d7da";
+            statusDiv.style.color = "#721c24";
+            statusDiv.textContent = "✗ Xəta: " + response.error;
+          }
           submitBtn.disabled = false;
           submitBtn.textContent = "Göndər";
         }
