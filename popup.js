@@ -51,6 +51,7 @@ loginForm.addEventListener("submit", async (e) => {
       refreshToken: data.refreshToken,
       type: data.type || "Bearer",
       username: data.username,
+      id: data.id,
     };
 
     chrome.storage.local.set({ auth: authData }, () => {
@@ -77,6 +78,7 @@ logoutBtn.addEventListener("click", () => {
         refreshToken: null,
         type: null,
         username: null,
+        id: null,
       },
     },
     () => {

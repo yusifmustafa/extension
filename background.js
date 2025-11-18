@@ -4,7 +4,13 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(
     {
       entries: [],
-      auth: { token: null, refreshToken: null, type: null, username: null },
+      auth: {
+        token: null,
+        refreshToken: null,
+        type: null,
+        username: null,
+        id: null,
+      },
     },
     (data) => {
       const init = {
@@ -14,10 +20,11 @@ chrome.runtime.onInstalled.addListener(() => {
           refreshToken: null,
           type: null,
           username: null,
+          id: null,
         },
         apiUrl: data.apiUrl || "http://49.12.130.247:9281/api/v1/auth/login",
         insertUrl:
-          data.insertUrl || "http://49.12.130.247:9282/api/tours/insert",
+          data.insertUrl || "http://localhost:9281/api/v1/tour-package/tour",
       };
       chrome.storage.local.set(init);
     }
@@ -38,6 +45,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
   console.log("✅ Context menu created");
 });
+
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   console.log("🖱️ Context menu clicked:", info.menuItemId);
 
@@ -46,36 +54,50 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
   console.log("📤 Sending collectSelected message to tab:", tab.id);
 
-  chrome.tabs.sendMessage(tab.id, { type: "collectSelected" }, (resp) => {
-    if (chrome.runtime.lastError) {
-      console.error("❌ Error:", chrome.runtime.lastError.message);
-      return;
-    }
+  chrome.tabs.sendMessage(
+    tab.id,
+    {
+      type: "collectSelected",
+      url: tab.url,
+    },
+    (resp) => {
+      if (chrome.runtime.lastError) {
+        console.error("❌ Error:", chrome.runtime.lastError.message);
+        return;
+      }
 
-    console.log("📥 Response from content script:", resp);
+      console.log("📥 Response from content script:", resp);
 
-    if (!resp || !Array.isArray(resp.items) || !resp.items.length) {
+      if (!resp || !Array.isArray(resp.items) || !resp.items.length) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: "showError",
+          message: "Heç bir təklif seçilməyib. Checkbox ilə seçin!",
+        });
+        return;
+      }
+
+      console.log(
+        "✅ Showing tracking dialog with",
+        resp.items.length,
+        "items"
+      );
+
       chrome.tabs.sendMessage(tab.id, {
-        type: "showError",
-        message: "Heç bir təklif seçilməyib. Checkbox ilə seçin!",
+        type: "showTrackingDialog",
+        items: resp.items,
+        url: resp.url,
       });
-      return;
     }
-
-    console.log("✅ Showing tracking dialog with", resp.items.length, "items");
-
-    chrome.tabs.sendMessage(tab.id, {
-      type: "showTrackingDialog",
-      items: resp.items,
-    });
-  });
+  );
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log("📨 Background received message:", msg.type);
 
   if (msg.type === "insertTours") {
-    insertToursToAPI(msg.applicationLeadId, msg.items)
+    const currentUrl = sender.tab?.url; // ← URL buradan alınır
+
+    insertToursToAPI(msg.applicationLeadId, msg.items, currentUrl)
       .then((result) => {
         console.log("✅ API success:", result);
         sendResponse({ success: true, result });
@@ -87,12 +109,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
-async function insertToursToAPI(applicationLeadId, items) {
+
+async function insertToursToAPI(applicationLeadId, items, url) {
   console.log("🚀 Inserting tours to API...");
 
   const { auth, insertUrl } = await chrome.storage.local.get({
     auth: {},
-    insertUrl: "http://49.12.130.247:9282/api/tours/insert",
+    insertUrl: "http://localhost:9281/api/v1/tour-package/tour",
   });
 
   if (!auth.token) {
@@ -101,8 +124,12 @@ async function insertToursToAPI(applicationLeadId, items) {
     throw new Error("Token yoxdur! Zəhmət olmasa login olun.");
   }
 
+  const domain = new URL(url).hostname.replace("www.", "");
+
   const payload = {
-    applicationLeadId: applicationLeadId,
+    empId: auth.id,
+    applicationLeadId: Number(applicationLeadId),
+    link: domain,
     tours: items,
   };
 

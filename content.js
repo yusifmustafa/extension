@@ -103,7 +103,6 @@
     return data;
   }
 
-  // ✅ Structured DTO mapping function
   function createTourDTO(obj) {
     return {
       departureFrom: obj["Departure from"] || null,
@@ -164,7 +163,6 @@
   obs.observe(document.documentElement, { childList: true, subtree: true });
   scan();
 
-  // ✅ Add CSS for selected rows
   const style = document.createElement("style");
   style.textContent = `
     tr.tour-collector-selected {
@@ -319,7 +317,6 @@
 
           setTimeout(() => overlay.remove(), 2000);
         } else {
-          // ✅ Check if error is about missing token
           if (response.error && response.error.includes("Token yoxdur")) {
             statusDiv.style.background = "#fff3cd";
             statusDiv.style.color = "#856404";
