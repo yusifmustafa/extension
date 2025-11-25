@@ -38,6 +38,8 @@ chrome.runtime.onInstalled.addListener(() => {
     documentUrlPatterns: [
       "*://*.summertour.az/*",
       "*://*.kompastour.az/*",
+      "*://*.online.pashaholidays.az/*",
+      "*://*.online.voyagergroup.az/*",
       "*://*.kazunion.com/*",
       "*://*.prestigetravel-az.com/*",
       "*://*.fstravel.asia/*",
@@ -134,8 +136,7 @@ async function insertToursToAPI(applicationLeadId, items, url) {
     tours: items,
   };
 
-  console.log("📤 FULL PAYLOAD OBJECT:", JSON.parse(JSON.stringify(payload)));
-  console.log("📤 FULL PAYLOAD STRING:", JSON.stringify(payload, null, 2));
+  console.log("📤 FULL PAYLOAD:", JSON.stringify(payload, null, 2));
 
   const response = await fetch(insertUrl, {
     method: "POST",
@@ -148,15 +149,32 @@ async function insertToursToAPI(applicationLeadId, items, url) {
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error("❌ API Error Response:", errorText);
     throw new Error(`API xətası: ${response.status} - ${errorText}`);
   }
 
-  const result = await response.json();
-  console.log("✅ API Response:", result);
+  const contentType = response.headers.get("content-type");
+  console.log("📥 Response Content-Type:", contentType);
 
-  const { entries } = await chrome.storage.local.get({ entries: [] });
-  items.forEach((item) => entries.push(item));
-  await chrome.storage.local.set({ entries });
+  const text = await response.text();
+  console.log("📥 Response Text:", text);
 
-  return result;
+  if (!text || text.trim() === "") {
+    console.log("✅ Empty response, assuming success");
+    return { success: true, message: "API uğurla qəbul etdi" };
+  }
+
+  try {
+    const result = JSON.parse(text);
+    console.log("✅ API Response:", result);
+
+    const { entries } = await chrome.storage.local.get({ entries: [] });
+    items.forEach((item) => entries.push(item));
+    await chrome.storage.local.set({ entries });
+
+    return result;
+  } catch (e) {
+    console.error("❌ JSON Parse Error:", e);
+    throw new Error(`JSON parse xətası: ${text.substring(0, 100)}...`);
+  }
 }

@@ -10,6 +10,8 @@
     "*://*.kazunion.com/*",
     "*://*.prestigetravel-az.com/*",
     "*://*.fstravel.asia/*",
+    "*://*.online.pashaholidays.az/*",
+    "*://*.online.voyagergroup.az/*",
     "http://49.12.130.247:9281/*",
     "http://49.12.130.247:9282/*"
   ],
@@ -23,7 +25,9 @@
         "*://*.kompastour.az/*",
         "*://*.kazunion.com/*",
         "*://*.prestigetravel-az.com/*",
-        "*://*.fstravel.asia/*"
+        "*://*.fstravel.asia/*",
+        "*://*.online.pashaholidays.az/*",
+        "*://*.online.voyagergroup.az/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"
