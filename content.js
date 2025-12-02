@@ -102,10 +102,20 @@
     });
     return data;
   }
+  function parseDepartureDate(dateStr) {
+    if (!dateStr) return null;
 
+    const match = dateStr.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+
+    if (!match) return dateStr;
+
+    const [, day, month, year] = match;
+
+    return `${year}-${month}-${day}`;
+  }
   function createTourDTO(obj) {
     return {
-      departureFrom: obj["Departure from"] || null,
+      departureFrom: parseDepartureDate(obj["Departure from"]),
       tour: obj["Tour"] || null,
       nights: obj["Nights"] ? parseInt(obj["Nights"]) : null,
       hotel: obj["Hotel"] || null,
