@@ -221,18 +221,24 @@
     `;
 
     const title = document.createElement("h3");
-    title.textContent = "İzləmə kodu daxil edin";
+    title.textContent = "İzləmə kodu seçin";
     title.style.cssText =
       "margin: 0 0 16px 0 !important; font-size: 20px !important; color: #333 !important;";
 
     const info = document.createElement("p");
-    info.textContent = `${items.length} təklif seçildi. Davam etmək üçün İzləmə kodu daxil edin.`;
+    info.textContent = `${items.length} təklif seçildi. Davam etmək üçün Application Lead seçin.`;
     info.style.cssText =
       "margin: 0 0 16px 0 !important; color: #666 !important; font-size: 14px !important;";
 
+    const autocompleteWrapper = document.createElement("div");
+    autocompleteWrapper.style.cssText = `
+      position: relative !important;
+      margin-bottom: 16px !important;
+    `;
+
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "İzləmə kodu";
+    input.placeholder = "Application Lead axtar...";
     input.style.cssText = `
       width: 100% !important;
       padding: 12px !important;
@@ -240,12 +246,131 @@
       border-radius: 6px !important;
       font-size: 15px !important;
       box-sizing: border-box !important;
-      margin-bottom: 16px !important;
+    `;
+
+    const dropdown = document.createElement("div");
+    dropdown.style.cssText = `
+      position: absolute !important;
+      top: 100% !important;
+      left: 0 !important;
+      right: 0 !important;
+      background: white !important;
+      border: 2px solid #ddd !important;
+      border-top: none !important;
+      border-radius: 0 0 6px 6px !important;
+      max-height: 200px !important;
+      overflow-y: auto !important;
+      display: none !important;
+      z-index: 9999 !important;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
     `;
 
     const statusDiv = document.createElement("div");
     statusDiv.style.cssText =
       "margin-bottom: 16px !important; padding: 10px !important; border-radius: 6px !important; display: none !important;";
+
+    let selectedId = null;
+    let debounceTimeout = null;
+
+    async function fetchApplicationLeads(query) {
+      if (query.length < 2) {
+        dropdown.style.display = "none";
+        return;
+      }
+
+      try {
+        console.log("🔍 Fetching application leads for:", query);
+
+        const response = await chrome.runtime.sendMessage({
+          type: "fetchApplicationLeads",
+          query: query,
+        });
+
+        console.log("📥 Application Leads Response:", response);
+
+        if (response.success && response.data) {
+          renderDropdown(response.data);
+        } else {
+          console.error("❌ Fetch failed:", response.error);
+          dropdown.style.display = "none";
+        }
+      } catch (error) {
+        console.error("❌ Fetch error:", error);
+        dropdown.style.display = "none";
+      }
+    }
+
+    function renderDropdown(leads) {
+      dropdown.innerHTML = "";
+
+      if (!leads || leads.length === 0) {
+        const noResult = document.createElement("div");
+        noResult.textContent = "Nəticə tapılmadı";
+        noResult.style.cssText = `
+          padding: 12px !important;
+          color: #999 !important;
+          text-align: center !important;
+        `;
+        dropdown.appendChild(noResult);
+        dropdown.style.display = "block";
+        return;
+      }
+
+      leads.forEach((lead) => {
+        const item = document.createElement("div");
+        item.textContent = `${lead.id} - ${lead.title}`;
+        item.style.cssText = `
+          padding: 12px !important;
+          cursor: pointer !important;
+          border-bottom: 1px solid #f0f0f0 !important;
+          font-size: 14px !important;
+          color: #333 !important;
+        `;
+
+        item.onmouseover = () => {
+          item.style.background = "#f5f5f5";
+        };
+        item.onmouseout = () => {
+          item.style.background = "white";
+        };
+
+        item.onclick = () => {
+          selectedId = lead.id;
+          input.value = `${lead.id} - ${lead.title}`;
+          dropdown.style.display = "none";
+          console.log("✅ Selected ID:", selectedId);
+        };
+
+        dropdown.appendChild(item);
+      });
+
+      dropdown.style.display = "block";
+    }
+
+    input.addEventListener("input", (e) => {
+      clearTimeout(debounceTimeout);
+      selectedId = null;
+
+      debounceTimeout = setTimeout(() => {
+        const query = e.target.value.trim();
+        fetchApplicationLeads(query);
+      }, 300);
+    });
+
+    input.addEventListener("focus", () => {
+      if (dropdown.children.length > 0) {
+        dropdown.style.display = "block";
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!autocompleteWrapper.contains(e.target)) {
+        dropdown.style.display = "none";
+      }
+    });
+
+    autocompleteWrapper.appendChild(input);
+    autocompleteWrapper.appendChild(dropdown);
 
     const btnContainer = document.createElement("div");
     btnContainer.style.cssText =
@@ -284,14 +409,13 @@
     submitBtn.onmouseout = () => (submitBtn.style.background = "#0066ff");
 
     submitBtn.onclick = async () => {
-      const applicationLeadId = input.value.trim();
-      console.log("📤 Submit clicked, applicationLeadId:", applicationLeadId);
+      console.log("📤 Submit clicked, selectedId:", selectedId);
 
-      if (!applicationLeadId) {
+      if (!selectedId) {
         statusDiv.style.display = "block";
         statusDiv.style.background = "#fff3cd";
         statusDiv.style.color = "#856404";
-        statusDiv.textContent = "Zəhmət olmasa ApplicationLeadId daxil edin";
+        statusDiv.textContent = "Zəhmət olmasa Application Lead seçin";
         return;
       }
 
@@ -306,7 +430,7 @@
         console.log("📡 Sending message to background...");
         const response = await chrome.runtime.sendMessage({
           type: "insertTours",
-          applicationLeadId: applicationLeadId,
+          applicationLeadId: selectedId,
           items: items,
         });
 
@@ -350,16 +474,12 @@
       }
     };
 
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") submitBtn.click();
-    });
-
     btnContainer.appendChild(cancelBtn);
     btnContainer.appendChild(submitBtn);
 
     dialog.appendChild(title);
     dialog.appendChild(info);
-    dialog.appendChild(input);
+    dialog.appendChild(autocompleteWrapper);
     dialog.appendChild(statusDiv);
     dialog.appendChild(btnContainer);
     overlay.appendChild(dialog);

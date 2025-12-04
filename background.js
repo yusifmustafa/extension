@@ -98,7 +98,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log("📨 Background received message:", msg.type);
 
   if (msg.type === "insertTours") {
-    const currentUrl = sender.tab?.url; // ← URL buradan alınır
+    const currentUrl = sender.tab?.url;
 
     insertToursToAPI(msg.applicationLeadId, msg.items, currentUrl)
       .then((result) => {
@@ -111,7 +111,58 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     return true;
   }
+
+
+  if (msg.type === "fetchApplicationLeads") {
+    console.log("🔍 Fetching application leads for query:", msg.query);
+
+    fetchApplicationLeadsFromAPI(msg.query)
+      .then((data) => {
+        console.log("✅ Application Leads fetched:", data);
+        sendResponse({ success: true, data });
+      })
+      .catch((error) => {
+        console.error("❌ Fetch error:", error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
 });
+
+async function fetchApplicationLeadsFromAPI(query) {
+  console.log("🚀 Fetching application leads...");
+
+  const { auth } = await chrome.storage.local.get({ auth: {} });
+
+  if (!auth.token) {
+    throw new Error("Token yoxdur! Zəhmət olmasa login olun.");
+  }
+
+  const apiUrl = `http://49.12.130.247:9281/api/v1/tour-package/application-leads?title=${encodeURIComponent(
+    query
+  )}`;
+
+  console.log("📤 API URL:", apiUrl);
+
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `${auth.type || "Bearer"} ${auth.token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("❌ API Error Response:", errorText);
+    throw new Error(`API xətası: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log("📥 Application Leads Data:", data);
+
+  return data;
+}
 
 async function insertToursToAPI(applicationLeadId, items, url) {
   console.log("🚀 Inserting tours to API...");
