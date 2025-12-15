@@ -139,8 +139,7 @@ async function fetchApplicationLeadsFromAPI(query) {
         throw new Error("Token yoxdur! Zəhmət olmasa login olun.");
     }
 
-    const apiUrl = `
-http://localhost:9281/api/v1/tour-package/application-leads?title=${encodeURIComponent(
+    const apiUrl = `http://49.12.130.247:9281/api/v1/tour-package/application-leads?title=${encodeURIComponent(
         query
     )}`;
 
