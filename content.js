@@ -318,7 +318,7 @@
 
       leads.forEach((lead) => {
         const item = document.createElement("div");
-        item.textContent = `${lead.id} - ${lead.title}`;
+        item.textContent = `${lead.title}`;
         item.style.cssText = `
           padding: 12px !important;
           cursor: pointer !important;
