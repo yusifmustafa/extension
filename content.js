@@ -115,7 +115,7 @@
   }
   function createTourDTO(obj) {
     return {
-      departureFrom: parseDepartureDate(obj["Departure from"]),
+      departureFrom: obj["Departure from"] || null,
       tour: obj["Tour"] || null,
       nights: obj["Nights"] ? parseInt(obj["Nights"]) : null,
       hotel: obj["Hotel"] || null,
