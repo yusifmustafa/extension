@@ -336,7 +336,7 @@
 
         item.onclick = () => {
           selectedId = lead.id;
-          input.value = `${lead.id} - ${lead.title}`;
+          input.value = `${lead.title}`;
           dropdown.style.display = "none";
           console.log("✅ Selected ID:", selectedId);
         };
