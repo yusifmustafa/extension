@@ -10,6 +10,7 @@
     "*://*.kazunion.com/*",
     "*://*.prestigetravel-az.com/*",
     "*://*.fstravel.asia/*",
+    "*://*.online.aviadesk.com/*",
     "*://*.online.pashaholidays.az/*",
     "*://*.online.voyagergroup.az/*",
     "http://49.12.130.247:9281/*",
@@ -26,6 +27,7 @@
         "*://*.kazunion.com/*",
         "*://*.prestigetravel-az.com/*",
         "*://*.fstravel.asia/*",
+        "*://*.online.aviadesk.com/*",
         "*://*.online.pashaholidays.az/*",
         "*://*.online.voyagergroup.az/*"
       ],
