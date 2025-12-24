@@ -40,6 +40,7 @@ chrome.runtime.onInstalled.addListener(() => {
             "*://*.kompastour.az/*",
             "*://*.online.pashaholidays.az/*",
             "*://*.online.voyagergroup.az/*",
+            "*://*.online.voyagergroup.kg/search_tour/*",
             "*://*.kazunion.com/*",
             "*://*.prestigetravel-az.com/*",
             "*://*.fstravel.asia/*",

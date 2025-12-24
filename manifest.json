@@ -3,7 +3,12 @@
   "name": "Tour Collector",
   "version": "1.0.0",
   "description": "Smart tour collection tool with authentication",
-  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
   "host_permissions": [
     "*://*.summertour.az/*",
     "*://*.kompastour.az/*",
@@ -13,6 +18,7 @@
     "*://*.online.aviadesk.com/*",
     "*://*.online.pashaholidays.az/*",
     "*://*.online.voyagergroup.az/*",
+    "*://*.online.voyagergroup.kg/search_tour/*",
     "http://49.12.130.247:9281/*",
     "http://49.12.130.247:9282/*"
   ],
@@ -26,12 +32,15 @@
         "*://*.kompastour.az/*",
         "*://*.kazunion.com/*",
         "*://*.prestigetravel-az.com/*",
+        "*://*.online.voyagergroup.kg/search_tour/*",
         "*://*.fstravel.asia/*",
         "*://*.online.aviadesk.com/*",
         "*://*.online.pashaholidays.az/*",
         "*://*.online.voyagergroup.az/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_end"
     }
   ],
