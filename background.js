@@ -1,5 +1,7 @@
 const MENU_ID = "tour_collector_copy";
 
+let tokenRefreshInterval = null;
+
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(
         {
@@ -28,6 +30,8 @@ chrome.runtime.onInstalled.addListener(() => {
                     "http://49.12.130.247:9281/api/v1/tour-package/tour",
             };
             chrome.storage.local.set(init);
+
+            startTokenRefreshInterval();
         }
     );
 
@@ -50,6 +54,115 @@ chrome.runtime.onInstalled.addListener(() => {
 
     console.log("✅ Context menu created");
 });
+
+function startTokenRefreshInterval() {
+    if (tokenRefreshInterval) {
+        clearInterval(tokenRefreshInterval);
+    }
+
+    tokenRefreshInterval = setInterval(async () => {
+        await checkAndRefreshToken();
+    }, 30000);
+
+    console.log("✅ Token refresh interval started");
+}
+
+async function checkAndRefreshToken() {
+    try {
+        const { auth } = await chrome.storage.local.get({ auth: {} });
+
+        if (!auth.token || !auth.refreshToken) {
+            return;
+        }
+
+        const tokenPayload = parseJwt(auth.token);
+
+        if (!tokenPayload || !tokenPayload.exp) {
+            console.warn("⚠️ Token parse edilə bilmədi");
+            return;
+        }
+
+        const expirationDate = tokenPayload.exp * 1000;
+        const timeLeft = expirationDate - Date.now();
+
+        if (timeLeft <= 60000) {
+            console.log("🔄 Token yenilənir...");
+            await refreshToken();
+        }
+    } catch (error) {
+        console.error("❌ Token yoxlanma xətası:", error);
+    }
+}
+
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(jsonPayload);
+    } catch (error) {
+        console.error("❌ JWT parse xətası:", error);
+        return null;
+    }
+}
+
+async function refreshToken() {
+    try {
+        const { auth } = await chrome.storage.local.get({ auth: {} });
+
+        if (!auth.refreshToken) {
+            console.warn("⚠️ Refresh token yoxdur");
+            return null;
+        }
+
+        const response = await fetch("http://49.12.130.247:9281/api/v1/auth/refresh-token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": auth.refreshToken,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Token yeniləmə uğursuz oldu: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data && data.refreshToken) {
+            const updatedAuth = {
+                ...auth,
+                token: data.token,
+                refreshToken: data.refreshToken,
+            };
+
+            await chrome.storage.local.set({ auth: updatedAuth });
+            console.log("✅ Token uğurla yeniləndi");
+            return data.token;
+        } else {
+            throw new Error("Yanlış refresh token cavabı");
+        }
+    } catch (error) {
+        console.error("❌ Token yeniləmə xətası:", error);
+
+        await chrome.storage.local.set({
+            auth: {
+                token: null,
+                refreshToken: null,
+                type: null,
+                username: null,
+                id: null,
+            }
+        });
+
+        return null;
+    }
+}
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     console.log("🖱️ Context menu clicked:", info.menuItemId);
@@ -114,7 +227,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true;
     }
 
-
     if (msg.type === "fetchApplicationLeads") {
         console.log("🔍 Fetching application leads for query:", msg.query);
 
@@ -129,12 +241,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             });
         return true;
     }
+
+    if (msg.type === "refreshToken") {
+        refreshToken()
+            .then((token) => {
+                sendResponse({ success: true, token });
+            })
+            .catch((error) => {
+                sendResponse({ success: false, error: error.message });
+            });
+        return true;
+    }
 });
 
 async function fetchApplicationLeadsFromAPI(query) {
     console.log("🚀 Fetching application leads...");
 
-    const {auth} = await chrome.storage.local.get({auth: {}});
+    let { auth } = await chrome.storage.local.get({ auth: {} });
 
     if (!auth.token) {
         throw new Error("Token yoxdur! Zəhmət olmasa login olun.");
@@ -146,13 +269,31 @@ async function fetchApplicationLeadsFromAPI(query) {
 
     console.log("📤 API URL:", apiUrl);
 
-    const response = await fetch(apiUrl, {
+    let response = await fetch(apiUrl, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
             Authorization: `${auth.type || "Bearer"} ${auth.token}`,
         },
     });
+
+    if (response.status === 401) {
+        console.log("🔄 Token bitib, yenilənir...");
+        const newToken = await refreshToken();
+
+        if (!newToken) {
+            throw new Error("Token yenilənə bilmədi");
+        }
+
+        const { auth: updatedAuth } = await chrome.storage.local.get({ auth: {} });
+        response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `${updatedAuth.type || "Bearer"} ${updatedAuth.token}`,
+            },
+        });
+    }
 
     if (!response.ok) {
         const errorText = await response.text();
@@ -169,7 +310,7 @@ async function fetchApplicationLeadsFromAPI(query) {
 async function insertToursToAPI(applicationLeadId, items, url) {
     console.log("🚀 Inserting tours to API...");
 
-    const {auth, insertUrl} = await chrome.storage.local.get({
+    let { auth, insertUrl } = await chrome.storage.local.get({
         auth: {},
         insertUrl: "http://49.12.130.247:9281/api/v1/tour-package/tour",
     });
@@ -191,7 +332,7 @@ async function insertToursToAPI(applicationLeadId, items, url) {
 
     console.log("📤 FULL PAYLOAD:", JSON.stringify(payload, null, 2));
 
-    const response = await fetch(insertUrl, {
+    let response = await fetch(insertUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -199,6 +340,25 @@ async function insertToursToAPI(applicationLeadId, items, url) {
         },
         body: JSON.stringify(payload),
     });
+
+    if (response.status === 401) {
+        console.log("🔄 Token bitib, yenilənir...");
+        const newToken = await refreshToken();
+
+        if (!newToken) {
+            throw new Error("Token yenilənə bilmədi");
+        }
+
+        const { auth: updatedAuth } = await chrome.storage.local.get({ auth: {} });
+        response = await fetch(insertUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `${updatedAuth.type || "Bearer"} ${updatedAuth.token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+    }
 
     if (!response.ok) {
         const errorText = await response.text();
@@ -231,3 +391,5 @@ async function insertToursToAPI(applicationLeadId, items, url) {
         throw new Error(`JSON parse xətası: ${text.substring(0, 100)}...`);
     }
 }
+
+startTokenRefreshInterval();
